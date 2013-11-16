@@ -50,7 +50,7 @@
              * @constructor
              */
             function Map(DOMElement, layers, mapOptions) {
-                this.map = new OpenLayers.Map(DOMElement, {
+                this.canvas = new OpenLayers.Map(DOMElement, {
                     'projection'       : buildProjection(mapOptions.mapProjection),
                     'displayProjection': buildProjection(mapOptions.displayProjection),
                     'controls'         : parseControls(mapOptions.controls, mapOptions.controlsOpts),
@@ -58,7 +58,6 @@
                     'zoom'             : mapOptions.zoom,
                     'layers'           : layers
                 });
-
                 return this;
             }
 
@@ -66,20 +65,28 @@
              * Destroys the OpenLayers Map instance and removes any associated layers
              */
             Map.prototype.destroy = function destroy() {
-                this.map.destroy();
-                LayersService.emptyLayers();
-                delete this.map;
+                this.canvas.destroy();
+                LayersService.reset();
+                delete this.canvas;
             };
 
+            Map.prototype.center = function center(params) {
+                this.canvas.setCenter(buildLatLon([params.longitude, params.latitude], 'EPSG:4326', this.canvas.getProjection()));
+            };
+
+            Map.prototype.addMarker = function addMarker(store) {
+                var layer = LayersService.marker.ol(store.name, null, store.geoLocation, true);
+                this.canvas.addLayer(layer);
+            };
+            
             /**
              * Registers an event handler for a given event on the map;
              * @param {!String} eventName The name of a support OpenLayers.Events (e.g. addlayer, mouseout, etc.)
              * @param {!Function} handler The handler to invoke when the event occurs
              */
             Map.prototype.registerEventListener = function registerEventListener(eventName, handler) {
-                this.map.events.register(eventName, this.map, (handler || angular.noop));
+                this.canvas.events.register(eventName, this.map, (handler || angular.noop));
             };
-
 
             /**
              * Capitalizes the first character of a string
@@ -152,7 +159,7 @@
                     return new Map(elem[0], layers, mapOptions);
                 },
                 parseEvents : function parseEvents(attributes) {
-                        var events = [];
+                    var events = [];
 
                     angular.forEach(attributes, function (value, attribute) {
                         if (mapEventPattern.test(attribute)) {

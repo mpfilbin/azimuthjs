@@ -7,7 +7,7 @@
     "use strict";
 
     angular.module('az.services').
-        factory('az.services.layers', ['az.config', '$http', function (config, $http) {
+        factory('az.services.layers', ['az.config', '$http','$rootScope', function (config, $http, $scope) {
             var defaults = config.defaults;
 
             function capitalize(string) {
@@ -59,11 +59,12 @@
                     size = new OpenLayers.Size(defaults.MARKER.DIMS.W, defaults.MARKER.DIMS.H),
                     offset = new OpenLayers.Pixel(-(size.w / 2), -size.h),
                     icon = new OpenLayers.Icon(defaults.MARKER.ICON, size, offset),
-                    latLon = new OpenLayers.LonLat(opts.lon, opts.lat).transform(defaults.SRS, 'EPSG:3857');
+                    latLon = new OpenLayers.LonLat(opts.longitude, opts.latitude).transform(defaults.SRS, 'EPSG:3857');
 
                 layer.mapLayer = isInMap;
                 layer.addMarker(new OpenLayers.Marker(latLon, icon));
                 LayersService.layers.push(layer);
+                LayersService.trigger('layers:new', layer);
                 return layer;
             }
 
@@ -221,6 +222,7 @@
 
             var LayersService = {
                 layers      : [],
+                events : {},
                 getMapLayers: function () {
                     var layers = [];
                     angular.forEach(this.layers, function (layer) {
@@ -230,8 +232,32 @@
                     });
                     return layers;
                 },
-                emptyLayers : function () {
-                    this.layers.length = 0;
+                on: function(event, callback){
+                    if(!angular.isArray(this.events[event])){
+                        this.events[event] = [];
+                    }
+                    this.events[event].push(callback);
+                },
+                once: function(eventName, callback){
+                    var self = this;
+                    this.on(eventName, function(){
+                        var args = Array.prototype.slice.call(arguments);
+                        callback.apply(callback, args);
+                        var handler = self.events[eventName].indexOf(this);
+                        delete self.events[eventName][handler];
+                    });
+                },
+                trigger: function(eventName){
+                    var args = Array.prototype.slice.call(arguments, 1),
+                        handlers = this.events[eventName] || [];
+
+                    for (var i = 0; i < handlers.length; i++) {
+                        handlers[i].apply(handlers[i], args);
+                    }
+                },
+                reset: function reset(){
+                  this.layers.length = 0;
+                  this.events = {};
                 },
                 tiles       : {
                     'ol'     : constructOpenLayerTiles,
