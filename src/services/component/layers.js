@@ -10,6 +10,11 @@
         factory('az.services.layers', ['az.config', '$http', function (config, $http) {
             var defaults = config.defaults;
 
+            function capitalize(string) {
+                return string.charAt(0).toUpperCase() + string.slice(1);
+
+            }
+
             /**
              * Constructs a new instance of the OpenLayers Vector object
              * @param {String} name
@@ -43,6 +48,21 @@
                         strategies: [opts.strategy || new OpenLayers.Strategy.Fixed()]
                     }, lyrOpt)
                 );
+
+                LayersService.layers.push(layer);
+
+                return layer;
+            }
+
+            function constructMarkerLayer(name, url, opts, isInMap) {
+                var layer = new OpenLayers.Layer.Markers(capitalize(name)),
+                    size = new OpenLayers.Size(defaults.MARKER.DIMS.W, defaults.MARKER.DIMS.H),
+                    offset = new OpenLayers.Pixel(-(size.w / 2), -size.h),
+                    icon = new OpenLayers.Icon(defaults.MARKER.ICON, size, offset),
+                    latLon = new OpenLayers.LonLat(opts.lon, opts.lat).transform(defaults.SRS, 'EPSG:3857');
+
+                layer.mapLayer = isInMap;
+                layer.addMarker(new OpenLayers.Marker(latLon, icon));
                 LayersService.layers.push(layer);
                 return layer;
             }
@@ -210,12 +230,15 @@
                     });
                     return layers;
                 },
-                emptyLayers: function(){
+                emptyLayers : function () {
                     this.layers.length = 0;
                 },
                 tiles       : {
                     'ol'     : constructOpenLayerTiles,
                     'leaflet': constructLeafletTiles
+                },
+                marker      : {
+                    'ol': constructMarkerLayer
                 },
                 wms         : {
                     'ol'     : constructOpenLayersWMS,
